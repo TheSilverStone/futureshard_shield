@@ -3,6 +3,33 @@ local SHARD_ITEM  = "mcl_amethyst:amethyst_shard"
 local SHIELD_STATE = {}
 local shard_seconds = 3
 
+minetest.register_on_punchplayer(function(player)
+    local pname = player:get_player_name()
+    local state = SHIELD_STATE[pname]
+    if state and state.entity and state.entity:get_luaentity() then
+        return true
+    end
+end)
+
+minetest.register_entity("futureshard_shield:shield_entity", {
+    initial_properties = {
+        physical = false,
+        collide_with_objects = false,
+        collisionbox = {0,0,0, 0,0,0},
+        visual = "mesh",
+        mesh = "futureshard_shield_sphere.obj",
+    },
+
+    player = nil,
+
+    on_step = function(self, dtime)
+        if not self.player or not self.player:is_player() then
+            self.object:remove()
+            return
+        end
+    end
+})
+
 minetest.register_craftitem("futureshard_shield:core", {
     description = "This strange, glowing sphere pulses with energy",
     inventory_image = "futureshard_shield_core.png"
@@ -30,6 +57,10 @@ local function stop_shield(pname)
     if state.entity then
         state.entity:remove()
     end
+    local player = minetest.get_player_by_name(pname)
+    if player then
+        player:set_armor_groups({fleshy = 100})
+    end
     SHIELD_STATE[pname] = nil
 end
 
@@ -48,19 +79,17 @@ minetest.register_globalstep(function(dtime)
                 if inv:contains_item("main", SHARD_ITEM) then
                     local obj = minetest.add_entity(player:get_pos(), "futureshard_shield:shield_entity")
                     if obj then
+                        obj:set_attach(player, "", {x=0, y=1.2, z=0}, {x=0, y=0, z=0})
                         local ent = obj:get_luaentity()
-                        if ent then
-                            ent.player = player
-                        end
-
+                        ent.player = player
                         SHIELD_STATE[pname] = {
                             entity = obj,
                             inv = inv,
                             time = 0,
                             last_dist = {}
                         }
-
                         state = SHIELD_STATE[pname]
+                        player:set_armor_groups({fleshy = 0})
                     end
                 end
             end
@@ -78,22 +107,14 @@ minetest.register_globalstep(function(dtime)
                 end
 
                 if state then
+                    player:set_armor_groups({fleshy = 0})
+
                     local pos = player:get_pos()
                     local objs = minetest.get_objects_inside_radius(pos, 3.5)
 
                     for _, obj in ipairs(objs) do
                         if not obj:is_player() then
                             obj:punch(player, 1.0, {damage_groups = {fleshy = 10000}})
-                        end
-                    end
-
-                    for _, obj in ipairs(objs) do
-                        local ent = obj:get_luaentity()
-                        if ent and ent.name and (
-                            ent.name == "mcl_bows:arrow" or
-                            ent.name == "mcl_bows:arrow_entity"
-                        ) then
-                            obj:remove()
                         end
                     end
 
@@ -114,4 +135,14 @@ minetest.register_globalstep(function(dtime)
             end
         end
     end
+end)
+
+minetest.register_on_leaveplayer(function(player)
+    local pname = player:get_player_name()
+    stop_shield(pname)
+end)
+
+minetest.register_on_dieplayer(function(player)
+    local pname = player:get_player_name()
+    stop_shield(pname)
 end)
