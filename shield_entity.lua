@@ -5,7 +5,6 @@ minetest.register_entity("futureshard_shield:shield_entity", {
         collisionbox = {0,0,0, 0,0,0},
         visual = "mesh",
         mesh = "futureshard_shield_sphere.obj",
-        glow = 14,
     },
 
     player = nil,
@@ -17,7 +16,15 @@ minetest.register_entity("futureshard_shield:shield_entity", {
         end
 
         local pos = self.player:get_pos()
-        pos.y = pos.y + 1.2
-        self.object:set_pos(pos)
+
+          for i = 1, 3 do
+            local objs = minetest.get_objects_inside_radius(pos, 3.5)
+            for _, obj in ipairs(objs) do
+                local name = obj:get_entity_name()
+                if name and name:find("vl_projectiles:") then
+                    obj:remove()
+                end
+            end
+        end
     end
 })
